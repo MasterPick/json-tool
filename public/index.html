@@ -1,442 +1,197 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>JSON Tool — 格式化 / 验证 / 查询</title>
-  <style>
-    :root {
-      --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
-      --border: #30363d; --text: #e6edf3; --muted: #8b949e;
-      --green: #3fb950; --red: #f85149; --yellow: #d29922;
-      --blue: #58a6ff; --purple: #bc8cff;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg); color: var(--text);
-      min-height: 100vh; display: flex; flex-direction: column;
-    }
-    header {
-      background: var(--surface); border-bottom: 1px solid var(--border);
-      padding: 14px 28px; display: flex; align-items: center; gap: 16px;
-    }
-    header h1 { font-size: 1.1rem; color: var(--green); }
-    header span { font-size: 0.8rem; color: var(--muted); }
-    .tabs {
-      background: var(--surface); padding: 0 28px;
-      border-bottom: 1px solid var(--border); display: flex; gap: 2px;
-    }
-    .tab {
-      padding: 10px 20px; cursor: pointer; font-size: 0.82rem;
-      color: var(--muted); border-bottom: 2px solid transparent;
-      transition: all 0.15s; user-select: none;
-    }
-    .tab:hover { color: var(--text); }
-    .tab.active { color: var(--green); border-bottom-color: var(--green); }
-    .main { display: flex; flex: 1; overflow: hidden; }
-    .pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .pane-label {
-      background: var(--surface); padding: 6px 16px;
-      font-size: 0.7rem; color: var(--muted); text-transform: uppercase;
-      letter-spacing: 0.06em; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    textarea, #output {
-      flex: 1; background: var(--bg); color: var(--text);
-      border: none; outline: none; padding: 16px;
-      font-family: "JetBrains Mono","Fira Code","Consolas",monospace;
-      font-size: 0.85rem; line-height: 1.7; resize: none;
-      overflow: auto;
-    }
-    textarea { border-right: 1px solid var(--border); }
-    textarea::placeholder { color: var(--muted); }
-    #output { padding: 16px; white-space: pre-wrap; }
-    .divider { width: 4px; background: var(--border); cursor: col-resize; flex-shrink: 0; }
-    .divider:hover { background: var(--green); }
-    .toolbar {
-      background: var(--surface); padding: 8px 28px;
-      display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--border);
-    }
-    .toolbar button {
-      background: var(--surface2); color: var(--text);
-      border: 1px solid var(--border); padding: 6px 16px; border-radius: 6px;
-      cursor: pointer; font-size: 0.8rem; transition: background 0.15s;
-    }
-    .toolbar button:hover { background: var(--green); color: var(--bg); border-color: var(--green); }
-    .toolbar button.red:hover { background: var(--red); border-color: var(--red); }
-    .toolbar .sep { flex: 1; }
-    .toolbar label { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-    #indentSize { width: 50px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
-    .status {
-      background: var(--surface); padding: 4px 28px;
-      font-size: 0.7rem; color: var(--muted); border-top: 1px solid var(--border);
-      display: flex; gap: 16px;
-    }
-    .status .ok  { color: var(--green); }
-    .status .err { color: var(--red); }
-    /* syntax highlight */
-    .key    { color: var(--blue); }
-    .str    { color: var(--green); }
-    .num    { color: var(--yellow); }
-    .bool   { color: var(--purple); }
-    .null   { color: var(--red); }
-    .punc   { color: var(--muted); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Tool v2.0</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--font:'SF Mono','Fira Code',monospace}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:16px;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--surface)}
+header h1{font-size:18px;color:var(--accent)}
+header span{font-size:12px;color:#8b949e}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;background:#238636;color:#fff}
+.tabs{display:flex;gap:2px;padding:8px 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tab{padding:6px 16px;border:none;background:transparent;color:#8b949e;font-family:var(--font);font-size:13px;cursor:pointer;border-radius:6px 6px 0 0;transition:all .15s}
+.tab:hover{background:#21262d;color:var(--text)}
+.tab.active{background:var(--bg);color:var(--accent);font-weight:600}
+.panels{flex:1;display:flex;flex-direction:column;padding:16px 24px;gap:12px;overflow:auto}
+.panel{display:none;flex-direction:column;gap:10px;flex:1}
+.panel.active{display:flex}
+.opts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+label{font-size:12px;color:#8b949e}
+select,input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-family:var(--font);font-size:12px}
+input[type=checkbox]{accent-color:var(--accent)}
+.btn{padding:6px 16px;border:none;border-radius:6px;font-family:var(--font);font-size:13px;cursor:pointer;font-weight:500}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-secondary{background:#21262d;color:var(--text);border:1px solid var(--border)}
+.btn-sm{background:#238636;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;padding:4px 10px}
+.btn-sm:hover{background:#2ea043}
+.editors{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0}
+textarea{width:100%;flex:1;min-height:160px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:13px;line-height:1.6;padding:12px;resize:none}
+textarea:focus{outline:none;border-color:var(--accent)}
+textarea.output{cursor:default;background:#0d1117}
+textarea.output.ok{border-color:var(--green)}
+textarea.output.err{border-color:var(--red)}
+.output-wrap{flex:1;display:flex;flex-direction:column;min-height:160px}
+.btns-row{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.diff-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:start;flex:1}
+.diff-lbl{font-size:11px;color:#484f58;text-align:center}
+.err-bar{display:none;padding:8px 12px;border-radius:8px;font-size:12px}
+.err-bar.show{display:block}
+.err-bar.err{background:rgba(248,81,73,.12);border:1px solid var(--red);color:var(--red)}
+.err-bar.ok{background:rgba(63,185,80,.12);border:1px solid var(--green);color:var(--green)}
+.stats{display:flex;gap:12px;font-size:11px}
+.stats span{padding:2px 8px;background:#21262d;border-radius:4px}
+.stats .v{color:var(--green)}
+.stats .x{color:var(--red)}
+@media(max-width:700px){.editors{grid-template-columns:1fr}.diff-grid{grid-template-columns:1fr}.diff-lbl{display:none}}
+</style>
 </head>
 <body>
-
 <header>
-  <h1>📋 JSON Tool</h1>
-  <span>格式化 · 验证 · 查询 · 美化</span>
+  <h1>JSON Tool <span class="badge">v2.0</span></h1>
+  <span>格式化 · 验证 · 查询 · 对比 · 转换 · Schema</span>
 </header>
-
 <div class="tabs">
-  <div class="tab active" data-tab="format" onclick="switchTab(this)">🎨 格式化</div>
-  <div class="tab" data-tab="validate" onclick="switchTab(this)">✅ 验证</div>
-  <div class="tab" data-tab="query" onclick="switchTab(this)">🔍 JSONPath 查询</div>
-  <div class="tab" data-tab="compare" onclick="switchTab(this)">⚖️ 对比</div>
+  <button class="tab active" data-t="format">格式化</button>
+  <button class="tab" data-t="validate">验证</button>
+  <button class="tab" data-t="minify">压缩</button>
+  <button class="tab" data-t="query">查询</button>
+  <button class="tab" data-t="diff">对比</button>
+  <button class="tab" data-t="convert">转换</button>
+  <button class="tab" data-t="schema">Schema</button>
 </div>
-
-<div class="toolbar" id="formatToolbar">
-  <button onclick="doFormat()">🎨 格式化</button>
-  <button onclick="doMinify()">🗜 压缩</button>
-  <button onclick="doSort()">🔤 键排序</button>
-  <button class="red" onclick="doClear()">🗑 清空</button>
-  <div class="sep"></div>
-  <label>缩进 <input type="number" id="indentSize" value="2" min="1" max="8"/> 空格</label>
-  <button onclick="copyOutput()">📋 复制</button>
-</div>
-
-<div class="toolbar" id="validateToolbar" style="display:none">
-  <button onclick="doValidate()">✅ 验证 JSON</button>
-  <div class="sep"></div>
-  <button class="red" onclick="doClear()">🗑 清空</button>
-</div>
-
-<div class="toolbar" id="queryToolbar" style="display:none">
-  <button onclick="doQuery()">🔍 执行查询</button>
-  <input type="text" id="queryPath" placeholder="$.store.book[*].author 或 $.data[?(@.age>25)]" style="flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.8rem;"/>
-  <button onclick="copyOutput()">📋 复制</button>
-</div>
-
-<div class="toolbar" id="compareToolbar" style="display:none">
-  <button onclick="doCompare()">⚖️ 对比 JSON</button>
-  <div class="sep"></div>
-  <button class="red" onclick="doClear()">🗑 清空</button>
-</div>
-
-<div class="main" id="mainLayout">
-  <div class="pane" id="leftPane">
-    <div class="pane-label" id="leftLabel">✏️ 输入 JSON <button onclick="pasteInput()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.7rem">📥 粘贴</button></div>
-    <textarea id="input" placeholder="在此粘贴或输入 JSON 内容..."></textarea>
+<div class="panels">
+  <div class="panel active" id="p-format">
+    <div class="opts">
+      <label>缩进 <select id="fi"><option value="2">2 空格</option><option value="4">4 空格</option><option value="1">Tab</option></select></label>
+      <label><input type="checkbox" id="fs"> 排序键</label>
+      <button class="btn btn-primary" onclick="fmt()">格式化</button>
+      <button class="btn btn-secondary" onclick="clr('format')">清空</button>
+    </div>
+    <div class="editors">
+      <textarea id="fi-t" placeholder='{"name":"JSON Tool","version":"2.0","features":["format","validate","query"]}'></textarea>
+      <div class="output-wrap">
+        <textarea id="fo-t" class="output" readonly placeholder="输出..."></textarea>
+        <div class="btns-row"><button class="btn-sm" onclick="cp('fo-t')">复制</button><button class="btn-sm" onclick="dl('fo-t','formatted.json')">下载</button></div>
+      </div>
+    </div>
+    <div class="err-bar" id="fe"></div>
   </div>
-  <div class="divider" id="divider"></div>
-  <div class="pane" id="rightPane">
-    <div class="pane-label" id="rightLabel">👁️ 输出结果</div>
-    <div id="output" id="output">等待输入...</div>
+  <div class="panel" id="p-validate">
+    <div class="opts">
+      <button class="btn btn-primary" onclick="vl()">验证</button>
+      <button class="btn btn-secondary" onclick="clr('validate')">清空</button>
+      <div class="stats" id="vs"></div>
+    </div>
+    <div class="editors">
+      <textarea id="vi-t" placeholder='{"valid": true}'></textarea>
+      <div class="output-wrap">
+        <textarea id="vo-t" class="output" readonly placeholder="验证结果..."></textarea>
+        <div class="btns-row"><button class="btn-sm" onclick="cp('vo-t')">复制</button></div>
+      </div>
+    </div>
+    <div class="err-bar" id="ve"></div>
+  </div>
+  <div class="panel" id="p-minify">
+    <div class="opts">
+      <button class="btn btn-primary" onclick="mn()">压缩</button>
+      <button class="btn btn-secondary" onclick="clr('minify')">清空</button>
+    </div>
+    <div class="editors">
+      <textarea id="mi-t" placeholder='{"key": "value"}'></textarea>
+      <div class="output-wrap">
+        <textarea id="mo-t" class="output" readonly></textarea>
+        <div class="btns-row"><button class="btn-sm" onclick="cp('mo-t')">复制</button><button class="btn-sm" onclick="dl('mo-t','minified.json')">下载</button></div>
+      </div>
+    </div>
+    <div class="err-bar" id="me"></div>
+  </div>
+  <div class="panel" id="p-query">
+    <div class="opts">
+      <label>路径 <input id="qp" placeholder=".key.nested" style="width:180px"></label>
+      <span style="font-size:11px;color:#484f58">语法: .key  [index]  .nested</span>
+      <button class="btn btn-primary" onclick="qy()">查询</button>
+      <button class="btn btn-secondary" onclick="clr('query')">清空</button>
+    </div>
+    <div class="editors">
+      <textarea id="qq-t" placeholder='{"user":{"name":"Alice","scores":[95,87,91]}}'></textarea>
+      <div class="output-wrap">
+        <textarea id="qo-t" class="output" readonly></textarea>
+        <div class="btns-row"><button class="btn-sm" onclick="cp('qo-t')">复制</button></div>
+      </div>
+    </div>
+    <div class="err-bar" id="qe"></div>
+  </div>
+  <div class="panel" id="p-diff">
+    <div class="opts">
+      <span style="font-size:12px;color:#8b949e">JSON 1</span>
+      <span style="font-size:12px;color:#8b949e">JSON 2</span>
+      <div style="flex:1"></div>
+      <button class="btn btn-primary" onclick="df()">对比</button>
+      <button class="btn btn-secondary" onclick="clr('diff')">清空</button>
+    </div>
+    <div class="diff-grid">
+      <textarea id="d1" placeholder='{"a":1,"b":2}'></textarea>
+      <div style="padding-top:70px;font-size:20px;color:#484f58">!=</div>
+      <textarea id="d2" placeholder='{"a":1,"c":3}'></textarea>
+    </div>
+    <div class="output-wrap">
+      <textarea id="do-t" class="output" readonly style="min-height:80px"></textarea>
+      <div class="btns-row"><button class="btn-sm" onclick="cp('do-t')">复制</button></div>
+    </div>
+    <div class="err-bar" id="de"></div>
+  </div>
+  <div class="panel" id="p-convert">
+    <div class="opts">
+      <select id="cv-dir"><option value="yaml">JSON to YAML</option><option value="json">YAML to JSON</option></select>
+      <button class="btn btn-primary" onclick="cv()">转换</button>
+      <button class="btn btn-secondary" onclick="clr('convert')">清空</button>
+    </div>
+    <div class="editors">
+      <textarea id="ci-t" placeholder='{"name":"example","version":1}'></textarea>
+      <div class="output-wrap">
+        <textarea id="co-t" class="output" readonly></textarea>
+        <div class="btns-row"><button class="btn-sm" onclick="cp('co-t')">复制</button><button class="btn-sm" onclick="dl('co-t','output.yaml')">下载</button></div>
+      </div>
+    </div>
+    <div class="err-bar" id="ce"></div>
+  </div>
+  <div class="panel" id="p-schema">
+    <div class="opts">
+      <button class="btn btn-primary" onclick="sc()">生成 Schema</button>
+      <button class="btn btn-secondary" onclick="clr('schema')">清空</button>
+    </div>
+    <div class="editors">
+      <textarea id="si-t" placeholder='{"name":"JSON Tool","version":"2.0","active":true,"tags":["format"],"meta":null}'></textarea>
+      <div class="output-wrap">
+        <textarea id="so-t" class="output" readonly></textarea>
+        <div class="btns-row"><button class="btn-sm" onclick="cp('so-t')">复制</button><button class="btn-sm" onclick="dl('so-t','schema.json')">下载</button></div>
+      </div>
+    </div>
+    <div class="err-bar" id="se"></div>
   </div>
 </div>
-
-<!-- 对比模式第二输入区 -->
-<div class="main" id="compareLayout" style="display:none">
-  <div class="pane">
-    <div class="pane-label">✏️ JSON A</div>
-    <textarea id="inputA" placeholder="第一个 JSON..."></textarea>
-  </div>
-  <div class="divider"></div>
-  <div class="pane">
-    <div class="pane-label">✏️ JSON B</div>
-    <textarea id="inputB" placeholder="第二个 JSON..."></textarea>
-  </div>
-</div>
-
-<div class="status">
-  <span id="statusText">就绪</span>
-  <span id="sizeInfo"></span>
-  <span id="lineColInfo"></span>
-</div>
-
 <script>
-const input     = document.getElementById('input');
-const output    = document.getElementById('output');
-let currentTab  = 'format';
-
-// ---------- Tab ----------
-function switchTab(el) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  currentTab = el.dataset.tab;
-  ['formatToolbar','validateToolbar','queryToolbar','compareToolbar'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
-  });
-  document.getElementById(currentTab + 'Toolbar').style.display = 'flex';
-
-  const main = document.getElementById('mainLayout');
-  const cmp  = document.getElementById('compareLayout');
-  if (currentTab === 'compare') {
-    main.style.display = 'none';
-    cmp.style.display  = 'flex';
-  } else {
-    main.style.display = 'flex';
-    cmp.style.display  = 'none';
-  }
-  doClear();
-}
-
-// ---------- 语法高亮 ----------
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function highlight(json) {
-  return escapeHtml(json)
-    .replace(/("(?:[^"\\]|\\.)*")\s*:/g,  '<span class="key">$1</span>:')
-    .replace(/("(?:[^"\\]|\\.)*")/g,       '<span class="str">$1</span>')
-    .replace(/\b(true|false)\b/g,          '<span class="bool">$1</span>')
-    .replace(/\bnull\b/g,                   '<span class="null">null</span>')
-    .replace(/\b(-?\d+\.?\d*(?:[eE][+-]?\d+)?)\b/g, '<span class="num">$1</span>')
-    .replace(/([{}\[\],])/g,               '<span class="punc">$1</span>');
-}
-
-// ---------- 状态更新 ----------
-function setStatus(text, type) {
-  const el = document.getElementById('statusText');
-  el.textContent = text;
-  el.className   = type ? type : '';
-}
-function updateInfo(text) {
-  document.getElementById('sizeInfo').textContent = text;
-}
-function updateLineCol() {
-  const val = input.value.substring(0, input.selectionStart);
-  const lines = val.split('\n').length;
-  const cols  = val.length - val.lastIndexOf('\n');
-  document.getElementById('lineColInfo').textContent = `行 ${lines}, 列 ${cols}`;
-}
-
-// ---------- 核心操作 ----------
-function parseSafe() {
-  try { return JSON.parse(input.value); }
-  catch (e) { throw new Error('JSON 语法错误: ' + e.message); }
-}
-
-function doFormat() {
-  try {
-    const obj   = parseSafe();
-    const indent = parseInt(document.getElementById('indentSize').value) || 2;
-    const raw   = JSON.stringify(obj, null, indent);
-    output.innerHTML = highlight(raw);
-    setStatus('✅ 格式化成功', 'ok');
-    updateInfo(`字符数: ${raw.length} | 缩进: ${indent} 空格`);
-  } catch (e) {
-    output.textContent = e.message;
-    setStatus('❌ ' + e.message, 'err');
-    updateInfo('');
-  }
-}
-
-function doMinify() {
-  try {
-    const obj  = parseSafe();
-    const raw  = JSON.stringify(obj);
-    output.innerHTML = highlight(raw);
-    setStatus('🗜 压缩成功', 'ok');
-    updateInfo(`压缩后字符数: ${raw.length}`);
-  } catch (e) {
-    output.textContent = e.message;
-    setStatus('❌ ' + e.message, 'err');
-  }
-}
-
-function doSort() {
-  try {
-    const indent = parseInt(document.getElementById('indentSize').value) || 2;
-    const raw    = JSON.stringify(sortObject(parseSafe()), null, indent);
-    output.innerHTML = highlight(raw);
-    setStatus('🔤 键排序成功', 'ok');
-    updateInfo(`排序后字符数: ${raw.length}`);
-  } catch (e) {
-    output.textContent = e.message;
-    setStatus('❌ ' + e.message, 'err');
-  }
-}
-
-function sortObject(obj) {
-  if (Array.isArray(obj)) return obj.map(sortObject);
-  if (obj !== null && typeof obj === 'object') {
-    return Object.keys(obj).sort().reduce((acc, k) => {
-      acc[k] = sortObject(obj[k]);
-      return acc;
-    }, {});
-  }
-  return obj;
-}
-
-function doValidate() {
-  try {
-    parseSafe();
-    output.textContent = '✅ 有效的 JSON！\n\n' + JSON.stringify(JSON.parse(input.value), null, 2).substring(0, 500);
-    if (input.value.length > 500) output.textContent += '\n\n... (内容过长，仅显示部分)';
-    setStatus('✅ JSON 有效', 'ok');
-    updateInfo(`总字符数: ${input.value.trim().length}`);
-  } catch (e) {
-    output.textContent = '❌ JSON 无效\n\n' + e.message;
-    setStatus('❌ JSON 无效', 'err');
-  }
-}
-
-function doQuery() {
-  try {
-    const obj   = parseSafe();
-    const query = document.getElementById('queryPath').value.trim();
-    if (!query) { doFormat(); return; }
-    const result = jsonPath(obj, query);
-    const raw   = JSON.stringify(result, null, 2);
-    output.innerHTML = highlight(raw);
-    setStatus(`🔍 查询成功 (${Array.isArray(result) ? result.length + ' 条结果' : '1 条结果'})`, 'ok');
-    updateInfo(`结果字符数: ${raw.length}`);
-  } catch (e) {
-    output.textContent = '❌ 查询失败\n\n' + e.message;
-    setStatus('❌ 查询失败: ' + e.message, 'err');
-  }
-}
-
-// 简化版 JSONPath（支持 $.store.book[*].author, $.data[?(@.price>10)], $..author）
-function jsonPath(obj, path) {
-  let result = [obj];
-  const parts = path.replace(/^\$/, '').split(/\.(?![^\[]*\])/).filter(Boolean);
-  for (const p of parts) {
-    const newResult = [];
-    for (const item of result) {
-      if (p === '*') {
-        if (Array.isArray(item)) newResult.push(...item);
-        else if (item !== null && typeof item === 'object') newResult.push(...Object.values(item));
-      } else if (p.startsWith('[') && p.endsWith(']')) {
-        // [n] or [?(@.x>y)] or [?(@.x)]
-        if (p.startsWith('[?(') && p.endsWith(')]')) {
-          const expr = p.slice(3, -2);
-          const m    = expr.match(/^@\.(\w+)([><=!]+)(.+)$/);
-          if (m) {
-            const [, key, op, val] = m;
-            const nval = JSON.parse(val);
-            if (Array.isArray(item)) {
-              item.forEach(sub => {
-                if (sub !== null && typeof sub === 'object') {
-                  const v = sub[key];
-                  if (op === '>'  && v >  nval) newResult.push(sub);
-                  if (op === '<'  && v <  nval) newResult.push(sub);
-                  if (op === '>=' && v >= nval) newResult.push(sub);
-                  if (op === '<=' && v <= nval) newResult.push(sub);
-                  if (op === '==' && v ==  nval) newResult.push(sub);
-                  if (op === '!=' && v !=  nval) newResult.push(sub);
-                }
-              });
-            }
-          }
-        } else {
-          const idx = parseInt(p.slice(1, -1));
-          if (Array.isArray(item) && idx < item.length) newResult.push(item[idx]);
-        }
-      } else if (p.startsWith('[') && p.includes('..')) {
-        // [..key] 递归取值
-        const k = p.match(/^\[\.\.(\w+)\]$/)?.[1];
-        if (k) collectValues(item, k, newResult);
-      } else {
-        if (item !== null && typeof item === 'object') newResult.push(item[p]);
-      }
-    }
-    result = newResult;
-  }
-  return result.length === 1 ? result[0] : result;
-}
-
-function collectValues(obj, key, arr) {
-  if (obj === null || typeof obj !== 'object') return;
-  if (obj.hasOwnProperty(key)) arr.push(obj[key]);
-  Object.values(obj).forEach(v => collectValues(v, key, arr));
-}
-
-function doCompare() {
-  try {
-    const a = JSON.parse(document.getElementById('inputA').value);
-    const b = JSON.parse(document.getElementById('inputB').value);
-    const diff = deepDiff(a, b);
-    if (diff.length === 0) {
-      output.innerHTML = '<span style="color:var(--green)">✅ 两段 JSON 完全一致</span>';
-      setStatus('✅ 一致', 'ok');
-    } else {
-      output.innerHTML = '<span style="color:var(--yellow)">⚠️ 发现 ' + diff.length + ' 处差异：</span>\n\n' + diff.map(d => '• ' + d).join('\n');
-      setStatus('⚠️ ' + diff.length + ' 处差异', 'err');
-    }
-  } catch (e) {
-    output.textContent = '❌ 对比失败: ' + e.message;
-    setStatus('❌ ' + e.message, 'err');
-  }
-}
-
-function deepDiff(a, b, path = '$') {
-  const diffs = [];
-  if (typeof a !== typeof b) {
-    diffs.push(path + ': 类型不同 (' + typeof a + ' → ' + typeof b + ')');
-    return diffs;
-  }
-  if (a === null || b === null || typeof a !== 'object') {
-    if (a !== b) diffs.push(path + ': ' + JSON.stringify(a) + ' → ' + JSON.stringify(b));
-    return diffs;
-  }
-  const aIsArr = Array.isArray(a), bIsArr = Array.isArray(b);
-  if (aIsArr !== bIsArr) { diffs.push(path + ': 数组/对象类型变化'); return diffs; }
-  const aKeys = Object.keys(a), bKeys = Object.keys(b);
-  const allKeys = new Set([...aKeys, ...bKeys]);
-  for (const k of allKeys) {
-    if (!a.hasOwnProperty(k)) diffs.push(path + '.' + k + ': 新增键 = ' + JSON.stringify(b[k]));
-    else if (!b.hasOwnProperty(k)) diffs.push(path + '.' + k + ': 删除键，原值 = ' + JSON.stringify(a[k]));
-    else diffs.push(...deepDiff(a[k], b[k], path + '.' + k));
-  }
-  return diffs;
-}
-
-function doClear() {
-  input.value = '';
-  output.textContent = '等待输入...';
-  output.innerHTML   = '等待输入...';
-  setStatus('就绪');
-  updateInfo('');
-}
-
-function copyOutput() {
-  navigator.clipboard.writeText(output.textContent).then(() => {
-    const prev = setStatus;
-    setStatus('✅ 已复制到剪贴板', 'ok');
-    setTimeout(() => setStatus('就绪'), 1500);
-  });
-}
-
-function pasteInput() {
-  navigator.clipboard.readText().then(t => { input.value = t; updateLineCol(); });
-}
-
-input.addEventListener('input', updateLineCol);
-input.addEventListener('click', updateLineCol);
-input.addEventListener('keyup', updateLineCol);
-
-// divider drag
-(function initDivider() {
-  const divider   = document.getElementById('divider');
-  const leftPane  = document.getElementById('leftPane');
-  const rightPane = document.getElementById('rightPane');
-  const container = document.getElementById('mainLayout');
-  let dragging = false;
-  divider.addEventListener('mousedown', () => { dragging = true; });
-  document.addEventListener('mouseup', () => { dragging = false; });
-  document.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    const pct = Math.max(20, Math.min(80, (e.clientX - container.getBoundingClientRect().left) / container.offsetWidth * 100));
-    leftPane.style.flex  = 'none';
-    leftPane.style.width  = pct + '%';
-    rightPane.style.flex = '1';
-  });
-})();
+const E=id=>document.getElementById(id);
+document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));t.classList.add('active');E('p-'+t.dataset.t).classList.add('active');})});
+async function post(endpoint,body){const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
+function show(id,msg,ok=false){const el=E(id);el.textContent=msg;el.className='err-bar show '+(ok?'ok':'err');setTimeout(()=>el.classList.remove('show'),5000);}
+async function fmt(){const j=E('fi-t').value;const out=E('fo-t');try{const r=await post('/api/format',{json:j,indent:E('fi').value==='1'?'\t':E('fi').value,sortKeys:E('fs').checked});if(r.success){out.value=r.result;out.className='output ok';show('fe','OK: '+r.result.length+' chars',true);}else{out.value='';out.className='output err';show('fe','ERROR: '+(r.detail?r.detail.line+': '+r.detail.message:r.error));}}catch(e){show('fe','Request failed: '+e.message);}}
+async function vl(){const j=E('vi-t').value;const out=E('vo-t');const stats=E('vs');try{const r=await post('/api/validate',{json:j});if(r.valid){out.value='Valid JSON\nKeys: '+r.keys+' | Chars: '+r.size;out.className='output ok';stats.innerHTML='<span class="v">OK</span><span>'+r.size+' chars</span><span>'+r.keys+' keys</span>';show('ve','JSON is valid',true);}else{out.value='Invalid JSON\nLine '+r.line+', Col '+r.column+'\n'+r.error;out.className='output err';stats.innerHTML='<span class="x">INVALID</span>';show('ve','ERROR: '+r.error);}}catch(e){show('ve','Request failed: '+e.message);}}
+async function mn(){const j=E('mi-t').value;const out=E('mo-t');try{const r=await post('/api/minify',{json:j});if(r.success){out.value=r.result;out.className='output ok';const pct=((1-r.minifiedSize/r.originalSize)*100).toFixed(1);show('me','Compressed: '+r.originalSize+' -> '+r.minifiedSize+' ('+pct+'% reduction)',true);}else{out.value='';out.className='output err';show('me','ERROR: '+r.error);}}catch(e){show('me','Request failed: '+e.message);}}
+async function qy(){const j=E('qq-t').value;const p=E('qp').value;const out=E('qo-t');if(!p){show('qe','Enter a path first');return;}try{const r=await post('/api/query',{json:j,path:p});if(r.success){out.value='Path: '+r.path+'\nFound: '+r.found+'\n\n'+JSON.stringify(r.result,null,2);out.className='output ok';show('qe','Query OK',true);}else{out.value='';out.className='output err';show('qe','ERROR: '+r.error);}}catch(e){show('qe','Request failed: '+e.message);}}
+async function df(){const j1=E('d1').value,j2=E('d2').value;const out=E('do-t');try{const r=await post('/api/diff',{json1:j1,json2:j2});if(r.success){out.value=r.diffs.map(d=>{const i={added:'[+]',removed:'[-]',changed:'[~]'}[d.type];return i+' '+d.type+': '+d.path+(d.oldValue!==undefined?'\n  OLD: '+JSON.stringify(d.oldValue):'')+(d.newValue!==undefined?'\n  NEW: '+JSON.stringify(d.newValue):'')+(d.value!==undefined?'\n  VAL: '+JSON.stringify(d.value):'');}).join('\n\n');out.className='output ok';show('de','Found '+r.totalChanges+' differences',true);}else{out.value='';out.className='output err';show('de','ERROR: '+r.error);}}catch(e){show('de','Request failed: '+e.message);}}
+async function cv(){const j=E('ci-t').value;const dir=E('cv-dir').value;const out=E('co-t');try{const r=await post('/api/convert',{json:j,to:dir});if(r.success){out.value=r.result;out.className='output ok';show('ce','Converted to '+(dir==='yaml'?'YAML':'JSON'),true);}else{out.value='';out.className='output err';show('ce','ERROR: '+r.error);}}catch(e){show('ce','Request failed: '+e.message);}}
+async function sc(){const j=E('si-t').value;const out=E('so-t');try{const r=await post('/api/schema/generate',{json:j});if(r.success){out.value=r.result;out.className='output ok';show('se','Schema generated',true);}else{out.value='';out.className='output err';show('se','ERROR: '+r.error);}}catch(e){show('se','Request failed: '+e.message);}}
+function clr(id){const t=E(id+'-t');if(t)t.value='';const o=E(id[0]+'o-t');if(o)o.value='';}
+async function cp(id){try{navigator.clipboard.writeText(E(id).value);}catch{E(id).select();document.execCommand('copy');}}
+function dl(id,fname){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([E(id).value],{type:'text/plain'}));a.download=fname;a.click();}
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){const t=document.querySelector('.tab.active')?.dataset.t;if(t==='format')fmt();else if(t==='validate')vl();else if(t==='minify')mn();else if(t==='query')qy();else if(t==='diff')df();else if(t==='convert')cv();else if(t==='schema')sc();}});
+document.querySelectorAll('textarea').forEach(ta=>{ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.max(160,ta.scrollHeight)+'px';});});
 </script>
 </body>
 </html>
