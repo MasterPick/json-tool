@@ -10,26 +10,11 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: "json-tool"
-            ext: ""
-            path_suffix: "linux"
-            release: true
-          - os: windows-latest
-            artifact_name: "json-tool.exe"
-            ext: ".exe"
-            path_suffix: "win"
-            release: false
-          - os: macos-latest
-            artifact_name: "json-tool"
-            ext: ""
-            path_suffix: "macos"
-            release: false
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,32 +30,66 @@ jobs:
         run: npm install -g pkg
 
       - name: Build binary
+        shell: bash
         run: |
-          pkg server.js --targets node18-${{ matrix.path_suffix }} --output dist/${{ matrix.artifact_name }}
-        env:
-          PKG_EXECPATH: ${{ github.workspace }}/node_modules/.bin/pkg
-
-      - name: Make executable (macOS/Linux)
-        if: matrix.os != 'windows-latest'
-        run: chmod +x dist/${{ matrix.artifact_name }}
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            pkg server.js --targets node18-win --output app.exe
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            pkg server.js --targets node18-macos --output app
+            chmod +x app
+          else
+            pkg server.js --targets node18-linux --output app
+            chmod +x app
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}-${{ matrix.os }}
-          path: dist/${{ matrix.artifact_name }}
+          name: app-${{ matrix.os }}
+          path: app
           retention-days: 5
 
-      - name: Create Draft Release
-        if: matrix.release == true
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Setup GitHub CLI
+        run: gh auth login --token ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v1.0.0 --repo MasterPick/json-tool --title "Build v1.0.0 - Cross-Platform Binaries" --draft --notes "Cross-platform binaries for json-tool v1.0.0"
-          
-      - name: Upload to Release
-        if: matrix.release == true
+          gh release create v1.0.0 \
+            --repo MasterPick/json-tool \
+            --title "Build v1.0.0" \
+            --draft \
+            --notes "Cross-platform binary builds for json-tool v1.0.0"
+
+      - name: Upload Linux binary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload v1.0.0 dist/${{ matrix.artifact_name }} --repo MasterPick/json-tool --clobber
+          gh release upload v1.0.0 artifacts/app-ubuntu-latest/app \
+            --repo MasterPick/json-tool --clobber || true
+
+      - name: Upload Windows binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v1.0.0 artifacts/app-windows-latest/app.exe \
+            --repo MasterPick/json-tool --clobber || true
+
+      - name: Upload macOS binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v1.0.0 artifacts/app-macos-latest/app \
+            --repo MasterPick/json-tool --clobber || true
