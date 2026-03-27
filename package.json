@@ -1,0 +1,13 @@
+{
+  "name": "json-tool",
+  "version": "1.0.0",
+  "description": "A powerful CLI + Web JSON formatter, validator, and query tool with syntax highlighting",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["json", "formatter", "validator", "query", "tool"],
+  "author": "MasterPick",
+  "license": "MIT",
+  "engines": { "node": ">=14.0.0" }
+}
