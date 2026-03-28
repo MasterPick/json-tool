@@ -1,11 +1,17 @@
 /**
- * JSON Tool Server v2.0
+ * JSON Tool Server v2.1
  * 强大的 JSON 格式化、验证、查询、对比、转换工具
+ * 
+ * v2.1 新增功能:
+ * - JSON 统计 API (POST /api/stats)
+ * - JSON 合并 API (POST /api/merge)
+ * - URL 参数加载 (?json=URL 或 ?json=base64)
  */
 const http  = require("http");
 const fs    = require("fs");
 const path  = require("path");
 const yaml  = require("js-yaml");
+const url   = require("url");
 
 const PORT  = process.env.PORT || 3001;
 const HISTORY_MAX = 20;
@@ -92,6 +98,122 @@ function generateSchema(obj) {
   }
   if (typeof obj === "number") return obj % 1 === 0 ? { type: "integer" } : { type: "number" };
   return { type: typeof obj };
+}
+
+/**
+ * JSON 统计分析
+ * 统计 JSON 的键数量、深度、类型分布等
+ */
+function analyzeJSON(obj, depth = 0, stats = null) {
+  if (!stats) {
+    stats = {
+      totalKeys: 0,
+      totalValues: 0,
+      maxDepth: 0,
+      types: { string: 0, number: 0, integer: 0, boolean: 0, null: 0, array: 0, object: 0 },
+      arrayLengths: [],
+      stringLengths: [],
+      numberRange: { min: null, max: null }
+    };
+  }
+  
+  stats.maxDepth = Math.max(stats.maxDepth, depth);
+  
+  if (obj === null) {
+    stats.types.null++;
+    stats.totalValues++;
+  } else if (Array.isArray(obj)) {
+    stats.types.array++;
+    stats.totalValues++;
+    stats.arrayLengths.push(obj.length);
+    for (const item of obj) {
+      analyzeJSON(item, depth + 1, stats);
+    }
+  } else if (typeof obj === "object") {
+    stats.types.object++;
+    stats.totalValues++;
+    const keys = Object.keys(obj);
+    stats.totalKeys += keys.length;
+    for (const key of keys) {
+      analyzeJSON(obj[key], depth + 1, stats);
+    }
+  } else if (typeof obj === "string") {
+    stats.types.string++;
+    stats.totalValues++;
+    stats.stringLengths.push(obj.length);
+  } else if (typeof obj === "number") {
+    stats.totalValues++;
+    if (Number.isInteger(obj)) {
+      stats.types.integer++;
+    } else {
+      stats.types.number++;
+    }
+    if (stats.numberRange.min === null || obj < stats.numberRange.min) {
+      stats.numberRange.min = obj;
+    }
+    if (stats.numberRange.max === null || obj > stats.numberRange.max) {
+      stats.numberRange.max = obj;
+    }
+  } else if (typeof obj === "boolean") {
+    stats.types.boolean++;
+    stats.totalValues++;
+  }
+  
+  return stats;
+}
+
+/**
+ * 深度合并多个 JSON 对象
+ * @param {Object} target - 目标对象
+ * @param {Object[]} sources - 源对象数组
+ * @param {Object} options - 合并选项
+ * @returns {Object} 合并后的对象
+ */
+function deepMerge(target, sources, options = {}) {
+  const { arrayMerge = "replace" } = options; // 'replace' | 'concat' | 'merge'
+  
+  const result = JSON.parse(JSON.stringify(target));
+  
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    
+    for (const key of Object.keys(source)) {
+      if (!(key in result)) {
+        result[key] = source[key];
+      } else if (Array.isArray(result[key]) && Array.isArray(source[key])) {
+        if (arrayMerge === "concat") {
+          result[key] = [...result[key], ...source[key]];
+        } else if (arrayMerge === "merge") {
+          // 按索引合并
+          const maxLen = Math.max(result[key].length, source[key].length);
+          const merged = [];
+          for (let i = 0; i < maxLen; i++) {
+            if (i < source[key].length) {
+              if (i < result[key].length && 
+                  typeof result[key][i] === "object" && typeof source[key][i] === "object" &&
+                  result[key][i] !== null && source[key][i] !== null) {
+                merged.push(deepMerge(result[key][i], [source[key][i]], options));
+              } else {
+                merged.push(source[key][i]);
+              }
+            } else {
+              merged.push(result[key][i]);
+            }
+          }
+          result[key] = merged;
+        } else {
+          result[key] = source[key];
+        }
+      } else if (typeof result[key] === "object" && typeof source[key] === "object" &&
+                 result[key] !== null && source[key] !== null && !Array.isArray(result[key])) {
+        result[key] = deepMerge(result[key], [source[key]], options);
+      } else {
+        result[key] = source[key];
+      }
+    }
+  }
+  
+  return result;
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -181,6 +303,81 @@ const api = {
     return { status: 200, data: { success: true, schema, result } };
   },
 
+  /**
+   * POST /api/stats
+   * JSON 统计分析
+   * 
+   * 请求体: { "json": "..." }
+   * 返回: { success: true, stats: { totalKeys, maxDepth, types, ... } }
+   */
+  "POST /api/stats": async (body) => {
+    const { json } = body;
+    const [err, data] = parseJSON(json);
+    if (err) return { status: 400, data: { success: false, error: "Invalid JSON", detail: err } };
+    
+    const stats = analyzeJSON(data);
+    
+    // 计算平均值
+    const avgArrayLen = stats.arrayLengths.length > 0 
+      ? (stats.arrayLengths.reduce((a, b) => a + b, 0) / stats.arrayLengths.length).toFixed(2) 
+      : 0;
+    const avgStringLen = stats.stringLengths.length > 0 
+      ? (stats.stringLengths.reduce((a, b) => a + b, 0) / stats.stringLengths.length).toFixed(2) 
+      : 0;
+    
+    addHistory("stats", json, JSON.stringify(stats));
+    return { 
+      status: 200, 
+      data: { 
+        success: true, 
+        stats: {
+          totalKeys: stats.totalKeys,
+          totalValues: stats.totalValues,
+          maxDepth: stats.maxDepth,
+          types: stats.types,
+          summary: {
+            avgArrayLength: parseFloat(avgArrayLen),
+            avgStringLength: parseFloat(avgStringLen),
+            numberRange: stats.numberRange,
+            totalArrays: stats.types.array,
+            totalObjects: stats.types.object
+          }
+        }
+      } 
+    };
+  },
+
+  /**
+   * POST /api/merge
+   * 深度合并多个 JSON 对象
+   * 
+   * 请求体: { "jsons": ["{...}", "{...}"], "options": { "arrayMerge": "replace" } }
+   * arrayMerge: 'replace' | 'concat' | 'merge'
+   * 返回: { success: true, result: "..." }
+   */
+  "POST /api/merge": async (body) => {
+    const { jsons, options = {} } = body;
+    
+    if (!Array.isArray(jsons) || jsons.length < 2) {
+      return { status: 400, data: { success: false, error: "At least 2 JSON objects required in 'jsons' array" } };
+    }
+    
+    const parsed = [];
+    for (let i = 0; i < jsons.length; i++) {
+      const [err, data] = parseJSON(jsons[i]);
+      if (err) {
+        return { status: 400, data: { success: false, error: `JSON at index ${i} is invalid`, detail: err } };
+      }
+      parsed.push(data);
+    }
+    
+    const merged = deepMerge(parsed[0], parsed.slice(1), options);
+    const result = JSON.stringify(merged, null, 2);
+    
+    addHistory("merge", jsons.join("\n---\n"), result);
+    return { status: 200, data: { success: true, result, mergedCount: jsons.length } };
+  },
+
   "GET /api/history": async () => {
     return { status: 200, data: { success: true, history } };
   },
@@ -195,8 +392,10 @@ const MIME = {
 };
 
 http.createServer(async (req, res) => {
-  const url  = req.url.split("?")[0];
-  const rkey = `${req.method} ${url}`;
+  const parsedUrl = url.parse(req.url, true);
+  const urlPath = parsedUrl.pathname;
+  const query = parsedUrl.query;
+  const rkey = `${req.method} ${urlPath}`;
 
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -205,8 +404,8 @@ http.createServer(async (req, res) => {
   }
 
   // Static files
-  const ext  = path.extname(url);
-  const sfile = path.join(__dirname, "public", url.replace(/^\//, ""));
+  const ext  = path.extname(urlPath);
+  const sfile = path.join(__dirname, "public", urlPath.replace(/^\//, ""));
   if (ext && fs.existsSync(sfile) && fs.statSync(sfile).isFile()) {
     res.writeHead(200, { "Content-Type": MIME[ext] || "text/plain" });
     res.end(fs.readFileSync(sfile)); return;
@@ -219,8 +418,27 @@ http.createServer(async (req, res) => {
     if (["POST", "PUT", "PATCH"].includes(req.method)) {
       try { body = JSON.parse(await getBody(req)); } catch { body = {}; }
     }
+    
+    // 支持 URL 参数传入 JSON (用于 GET 请求或简化测试)
+    if (query.json && req.method === "GET") {
+      body.json = query.json;
+    }
+    
     const { status, data } = await handler(body);
     sendJSON(res, status, data);
+    return;
+  }
+
+  // 首页支持 URL 参数自动加载 JSON
+  if (urlPath === "/" && req.method === "GET" && query.json) {
+    const html = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf-8");
+    // 注入 URL 参数到页面，让前端自动加载
+    const injected = html.replace(
+      "</head>",
+      `  <script>window.INITIAL_JSON = ${JSON.stringify(query.json)};</script>\n</head>`
+    );
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(injected);
     return;
   }
 
@@ -228,7 +446,7 @@ http.createServer(async (req, res) => {
   res.writeHead(404, { "Content-Type": "text/plain" });
   res.end("404 Not Found");
 }).listen(PORT, () => {
-  console.log(`JSON Tool v2.0 running at http://localhost:${PORT}`);
+  console.log(`JSON Tool v2.1 running at http://localhost:${PORT}`);
   console.log("  POST /api/format       - Pretty-print JSON");
   console.log("  POST /api/validate     - Validate JSON");
   console.log("  POST /api/minify       - Minify JSON");
@@ -236,5 +454,8 @@ http.createServer(async (req, res) => {
   console.log("  POST /api/diff         - Compare two JSONs");
   console.log("  POST /api/convert      - JSON <-> YAML");
   console.log("  POST /api/schema/generate - Generate JSON Schema");
+  console.log("  POST /api/stats        - JSON statistics (NEW)");
+  console.log("  POST /api/merge        - Deep merge JSONs (NEW)");
   console.log("  GET  /api/history      - Operation history");
+  console.log("  GET  /?json=...        - Load JSON from URL param (NEW)");
 });

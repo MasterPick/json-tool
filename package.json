@@ -1,6 +1,6 @@
 {
   "name": "json-tool",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A powerful CLI + Web JSON formatter, validator, and query tool with syntax highlighting",
   "main": "server.js",
   "scripts": {
@@ -9,5 +9,7 @@
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
-  }
+  },
+  "keywords": ["json", "formatter", "validator", "jsonpath", "diff", "yaml", "schema", "tool"],
+  "license": "MIT"
 }

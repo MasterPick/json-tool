@@ -3,15 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JSON Tool v2.0</title>
+<title>JSON Tool v2.1</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--font:'SF Mono','Fira Code',monospace}
-body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--font:'SF Mono','Fira Code',monospace
+}
+[data-theme="light"]{
+  --bg:#ffffff;--surface:#f6f8fa;--border:#d0d7de;--text:#1f2328;--accent:#0969da;--green:#1a7f37;--red:#cf222e
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;transition:background .3s,color .3s}
 header{display:flex;align-items:center;gap:16px;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--surface)}
 header h1{font-size:18px;color:var(--accent)}
 header span{font-size:12px;color:#8b949e}
 .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;background:#238636;color:#fff}
+.theme-btn{margin-left:auto;padding:4px 12px;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:6px;cursor:pointer;font-size:12px;font-family:var(--font)}
+.theme-btn:hover{border-color:var(--accent)}
 .tabs{display:flex;gap:2px;padding:8px 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
 .tab{padding:6px 16px;border:none;background:transparent;color:#8b949e;font-family:var(--font);font-size:13px;cursor:pointer;border-radius:6px 6px 0 0;transition:all .15s}
 .tab:hover{background:#21262d;color:var(--text)}
@@ -30,11 +37,12 @@ input[type=checkbox]{accent-color:var(--accent)}
 .btn-sm{background:#238636;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;padding:4px 10px}
 .btn-sm:hover{background:#2ea043}
 .editors{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0}
-textarea{width:100%;flex:1;min-height:160px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:13px;line-height:1.6;padding:12px;resize:none}
+textarea{width:100%;flex:1;min-height:160px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:13px;line-height:1.6;padding:12px;resize:none;transition:border-color .2s,background .2s}
 textarea:focus{outline:none;border-color:var(--accent)}
-textarea.output{cursor:default;background:#0d1117}
+textarea.output{cursor:default;background:var(--bg)}
 textarea.output.ok{border-color:var(--green)}
 textarea.output.err{border-color:var(--red)}
+textarea.drag-over{border-color:var(--accent);background:rgba(88,166,255,.1)}
 .output-wrap{flex:1;display:flex;flex-direction:column;min-height:160px}
 .btns-row{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
 .diff-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:start;flex:1}
@@ -43,17 +51,24 @@ textarea.output.err{border-color:var(--red)}
 .err-bar.show{display:block}
 .err-bar.err{background:rgba(248,81,73,.12);border:1px solid var(--red);color:var(--red)}
 .err-bar.ok{background:rgba(63,185,80,.12);border:1px solid var(--green);color:var(--green)}
-.stats{display:flex;gap:12px;font-size:11px}
-.stats span{padding:2px 8px;background:#21262d;border-radius:4px}
+.stats{display:flex;gap:12px;font-size:11px;flex-wrap:wrap}
+.stats span{padding:2px 8px;background:var(--surface);border-radius:4px;border:1px solid var(--border)}
 .stats .v{color:var(--green)}
 .stats .x{color:var(--red)}
-@media(max-width:700px){.editors{grid-template-columns:1fr}.diff-grid{grid-template-columns:1fr}.diff-lbl{display:none}}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
+.stat-card h4{font-size:11px;color:#8b949e;margin-bottom:4px;text-transform:uppercase}
+.stat-card .val{font-size:18px;color:var(--accent);font-weight:600}
+.merge-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1}
+.merge-grid.single{grid-template-columns:1fr}
+@media(max-width:700px){.editors{grid-template-columns:1fr}.diff-grid{grid-template-columns:1fr}.diff-lbl{display:none}.merge-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header>
-  <h1>JSON Tool <span class="badge">v2.0</span></h1>
-  <span>格式化 · 验证 · 查询 · 对比 · 转换 · Schema</span>
+  <h1>JSON Tool <span class="badge">v2.1</span></h1>
+  <span>格式化 · 验证 · 查询 · 对比 · 转换 · Schema · 统计 · 合并</span>
+  <button class="theme-btn" onclick="toggleTheme()">🌙 深色</button>
 </header>
 <div class="tabs">
   <button class="tab active" data-t="format">格式化</button>
@@ -63,17 +78,21 @@ textarea.output.err{border-color:var(--red)}
   <button class="tab" data-t="diff">对比</button>
   <button class="tab" data-t="convert">转换</button>
   <button class="tab" data-t="schema">Schema</button>
+  <button class="tab" data-t="stats">统计</button>
+  <button class="tab" data-t="merge">合并</button>
 </div>
 <div class="panels">
+  <!-- 格式化 -->
   <div class="panel active" id="p-format">
     <div class="opts">
       <label>缩进 <select id="fi"><option value="2">2 空格</option><option value="4">4 空格</option><option value="1">Tab</option></select></label>
       <label><input type="checkbox" id="fs"> 排序键</label>
       <button class="btn btn-primary" onclick="fmt()">格式化</button>
       <button class="btn btn-secondary" onclick="clr('format')">清空</button>
+      <span style="font-size:11px;color:#484f58;margin-left:8px">💡 拖拽文件到输入框导入</span>
     </div>
     <div class="editors">
-      <textarea id="fi-t" placeholder='{"name":"JSON Tool","version":"2.0","features":["format","validate","query"]}'></textarea>
+      <textarea id="fi-t" placeholder='{"name":"JSON Tool","version":"2.1","features":["format","validate","query","stats","merge"]}'></textarea>
       <div class="output-wrap">
         <textarea id="fo-t" class="output" readonly placeholder="输出..."></textarea>
         <div class="btns-row"><button class="btn-sm" onclick="cp('fo-t')">复制</button><button class="btn-sm" onclick="dl('fo-t','formatted.json')">下载</button></div>
@@ -81,6 +100,7 @@ textarea.output.err{border-color:var(--red)}
     </div>
     <div class="err-bar" id="fe"></div>
   </div>
+  <!-- 验证 -->
   <div class="panel" id="p-validate">
     <div class="opts">
       <button class="btn btn-primary" onclick="vl()">验证</button>
@@ -96,6 +116,7 @@ textarea.output.err{border-color:var(--red)}
     </div>
     <div class="err-bar" id="ve"></div>
   </div>
+  <!-- 压缩 -->
   <div class="panel" id="p-minify">
     <div class="opts">
       <button class="btn btn-primary" onclick="mn()">压缩</button>
@@ -110,6 +131,7 @@ textarea.output.err{border-color:var(--red)}
     </div>
     <div class="err-bar" id="me"></div>
   </div>
+  <!-- 查询 -->
   <div class="panel" id="p-query">
     <div class="opts">
       <label>路径 <input id="qp" placeholder=".key.nested" style="width:180px"></label>
@@ -126,6 +148,7 @@ textarea.output.err{border-color:var(--red)}
     </div>
     <div class="err-bar" id="qe"></div>
   </div>
+  <!-- 对比 -->
   <div class="panel" id="p-diff">
     <div class="opts">
       <span style="font-size:12px;color:#8b949e">JSON 1</span>
@@ -145,6 +168,7 @@ textarea.output.err{border-color:var(--red)}
     </div>
     <div class="err-bar" id="de"></div>
   </div>
+  <!-- 转换 -->
   <div class="panel" id="p-convert">
     <div class="opts">
       <select id="cv-dir"><option value="yaml">JSON to YAML</option><option value="json">YAML to JSON</option></select>
@@ -160,13 +184,14 @@ textarea.output.err{border-color:var(--red)}
     </div>
     <div class="err-bar" id="ce"></div>
   </div>
+  <!-- Schema -->
   <div class="panel" id="p-schema">
     <div class="opts">
       <button class="btn btn-primary" onclick="sc()">生成 Schema</button>
       <button class="btn btn-secondary" onclick="clr('schema')">清空</button>
     </div>
     <div class="editors">
-      <textarea id="si-t" placeholder='{"name":"JSON Tool","version":"2.0","active":true,"tags":["format"],"meta":null}'></textarea>
+      <textarea id="si-t" placeholder='{"name":"JSON Tool","version":"2.1","active":true,"tags":["format"],"meta":null}'></textarea>
       <div class="output-wrap">
         <textarea id="so-t" class="output" readonly></textarea>
         <div class="btns-row"><button class="btn-sm" onclick="cp('so-t')">复制</button><button class="btn-sm" onclick="dl('so-t','schema.json')">下载</button></div>
@@ -174,24 +199,308 @@ textarea.output.err{border-color:var(--red)}
     </div>
     <div class="err-bar" id="se"></div>
   </div>
+  <!-- 统计 (NEW) -->
+  <div class="panel" id="p-stats">
+    <div class="opts">
+      <button class="btn btn-primary" onclick="st()">分析统计</button>
+      <button class="btn btn-secondary" onclick="clr('stats')">清空</button>
+    </div>
+    <div class="editors">
+      <textarea id="st-t" placeholder='{"users":[{"id":1,"name":"Alice","active":true},{"id":2,"name":"Bob","active":false}],"total":2}'></textarea>
+      <div class="output-wrap">
+        <div id="st-out" style="flex:1;overflow:auto;padding:8px"></div>
+        <div class="btns-row"><button class="btn-sm" onclick="cpStat()">复制统计结果</button></div>
+      </div>
+    </div>
+    <div class="err-bar" id="ste"></div>
+  </div>
+  <!-- 合并 (NEW) -->
+  <div class="panel" id="p-merge">
+    <div class="opts">
+      <label>数组合并 <select id="mg-opt"><option value="replace">替换</option><option value="concat">拼接</option><option value="merge">按索引合并</option></select></label>
+      <button class="btn btn-sm" onclick="addMergeInput()">+ 添加 JSON</button>
+      <button class="btn btn-primary" onclick="mg()">合并</button>
+      <button class="btn btn-secondary" onclick="clr('merge')">清空</button>
+    </div>
+    <div class="merge-grid" id="mg-inputs">
+      <textarea id="mg1" placeholder='{"a":1,"b":{"x":10}}' class="merge-input"></textarea>
+      <textarea id="mg2" placeholder='{"a":2,"c":3,"b":{"y":20}}' class="merge-input"></textarea>
+    </div>
+    <div class="output-wrap">
+      <textarea id="mgo-t" class="output" readonly style="min-height:100px"></textarea>
+      <div class="btns-row"><button class="btn-sm" onclick="cp('mgo-t')">复制</button><button class="btn-sm" onclick="dl('mgo-t','merged.json')">下载</button></div>
+    </div>
+    <div class="err-bar" id="mge"></div>
+  </div>
 </div>
 <script>
 const E=id=>document.getElementById(id);
-document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));t.classList.add('active');E('p-'+t.dataset.t).classList.add('active');})});
-async function post(endpoint,body){const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
-function show(id,msg,ok=false){const el=E(id);el.textContent=msg;el.className='err-bar show '+(ok?'ok':'err');setTimeout(()=>el.classList.remove('show'),5000);}
-async function fmt(){const j=E('fi-t').value;const out=E('fo-t');try{const r=await post('/api/format',{json:j,indent:E('fi').value==='1'?'\t':E('fi').value,sortKeys:E('fs').checked});if(r.success){out.value=r.result;out.className='output ok';show('fe','OK: '+r.result.length+' chars',true);}else{out.value='';out.className='output err';show('fe','ERROR: '+(r.detail?r.detail.line+': '+r.detail.message:r.error));}}catch(e){show('fe','Request failed: '+e.message);}}
-async function vl(){const j=E('vi-t').value;const out=E('vo-t');const stats=E('vs');try{const r=await post('/api/validate',{json:j});if(r.valid){out.value='Valid JSON\nKeys: '+r.keys+' | Chars: '+r.size;out.className='output ok';stats.innerHTML='<span class="v">OK</span><span>'+r.size+' chars</span><span>'+r.keys+' keys</span>';show('ve','JSON is valid',true);}else{out.value='Invalid JSON\nLine '+r.line+', Col '+r.column+'\n'+r.error;out.className='output err';stats.innerHTML='<span class="x">INVALID</span>';show('ve','ERROR: '+r.error);}}catch(e){show('ve','Request failed: '+e.message);}}
-async function mn(){const j=E('mi-t').value;const out=E('mo-t');try{const r=await post('/api/minify',{json:j});if(r.success){out.value=r.result;out.className='output ok';const pct=((1-r.minifiedSize/r.originalSize)*100).toFixed(1);show('me','Compressed: '+r.originalSize+' -> '+r.minifiedSize+' ('+pct+'% reduction)',true);}else{out.value='';out.className='output err';show('me','ERROR: '+r.error);}}catch(e){show('me','Request failed: '+e.message);}}
-async function qy(){const j=E('qq-t').value;const p=E('qp').value;const out=E('qo-t');if(!p){show('qe','Enter a path first');return;}try{const r=await post('/api/query',{json:j,path:p});if(r.success){out.value='Path: '+r.path+'\nFound: '+r.found+'\n\n'+JSON.stringify(r.result,null,2);out.className='output ok';show('qe','Query OK',true);}else{out.value='';out.className='output err';show('qe','ERROR: '+r.error);}}catch(e){show('qe','Request failed: '+e.message);}}
-async function df(){const j1=E('d1').value,j2=E('d2').value;const out=E('do-t');try{const r=await post('/api/diff',{json1:j1,json2:j2});if(r.success){out.value=r.diffs.map(d=>{const i={added:'[+]',removed:'[-]',changed:'[~]'}[d.type];return i+' '+d.type+': '+d.path+(d.oldValue!==undefined?'\n  OLD: '+JSON.stringify(d.oldValue):'')+(d.newValue!==undefined?'\n  NEW: '+JSON.stringify(d.newValue):'')+(d.value!==undefined?'\n  VAL: '+JSON.stringify(d.value):'');}).join('\n\n');out.className='output ok';show('de','Found '+r.totalChanges+' differences',true);}else{out.value='';out.className='output err';show('de','ERROR: '+r.error);}}catch(e){show('de','Request failed: '+e.message);}}
-async function cv(){const j=E('ci-t').value;const dir=E('cv-dir').value;const out=E('co-t');try{const r=await post('/api/convert',{json:j,to:dir});if(r.success){out.value=r.result;out.className='output ok';show('ce','Converted to '+(dir==='yaml'?'YAML':'JSON'),true);}else{out.value='';out.className='output err';show('ce','ERROR: '+r.error);}}catch(e){show('ce','Request failed: '+e.message);}}
-async function sc(){const j=E('si-t').value;const out=E('so-t');try{const r=await post('/api/schema/generate',{json:j});if(r.success){out.value=r.result;out.className='output ok';show('se','Schema generated',true);}else{out.value='';out.className='output err';show('se','ERROR: '+r.error);}}catch(e){show('se','Request failed: '+e.message);}}
-function clr(id){const t=E(id+'-t');if(t)t.value='';const o=E(id[0]+'o-t');if(o)o.value='';}
-async function cp(id){try{navigator.clipboard.writeText(E(id).value);}catch{E(id).select();document.execCommand('copy');}}
-function dl(id,fname){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([E(id).value],{type:'text/plain'}));a.download=fname;a.click();}
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){const t=document.querySelector('.tab.active')?.dataset.t;if(t==='format')fmt();else if(t==='validate')vl();else if(t==='minify')mn();else if(t==='query')qy();else if(t==='diff')df();else if(t==='convert')cv();else if(t==='schema')sc();}});
-document.querySelectorAll('textarea').forEach(ta=>{ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.max(160,ta.scrollHeight)+'px';});});
+let mergeCount=2;
+
+// Tab 切换
+document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  t.classList.add('active');
+  E('p-'+t.dataset.t).classList.add('active');
+})});
+
+// 主题切换
+function toggleTheme(){
+  const html=document.documentElement;
+  const btn=document.querySelector('.theme-btn');
+  if(html.getAttribute('data-theme')==='light'){
+    html.removeAttribute('data-theme');
+    btn.textContent='🌙 深色';
+    localStorage.setItem('theme','dark');
+  }else{
+    html.setAttribute('data-theme','light');
+    btn.textContent='☀️ 浅色';
+    localStorage.setItem('theme','light');
+  }
+}
+
+// 初始化主题
+if(localStorage.getItem('theme')==='light'){
+  document.documentElement.setAttribute('data-theme','light');
+  document.querySelector('.theme-btn').textContent='☀️ 浅色';
+}
+
+// 文件拖拽导入
+function setupDragDrop(textarea){
+  textarea.addEventListener('dragover',e=>{e.preventDefault();textarea.classList.add('drag-over');});
+  textarea.addEventListener('dragleave',()=>{textarea.classList.remove('drag-over');});
+  textarea.addEventListener('drop',e=>{
+    e.preventDefault();
+    textarea.classList.remove('drag-over');
+    const file=e.dataTransfer.files[0];
+    if(file){
+      const reader=new FileReader();
+      reader.onload=ev=>{textarea.value=ev.target.result;};
+      reader.readAsText(file);
+    }
+  });
+}
+document.querySelectorAll('textarea:not(.output)').forEach(setupDragDrop);
+
+// URL 参数加载
+if(window.INITIAL_JSON){
+  const active=E('fi-t');
+  if(active)active.value=window.INITIAL_JSON;
+}
+
+async function post(endpoint,body){
+  const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  return r.json();
+}
+
+function show(id,msg,ok=false){
+  const el=E(id);
+  el.textContent=msg;
+  el.className='err-bar show '+(ok?'ok':'err');
+  setTimeout(()=>el.classList.remove('show'),5000);
+}
+
+async function fmt(){
+  const j=E('fi-t').value;
+  const out=E('fo-t');
+  try{
+    const r=await post('/api/format',{json:j,indent:E('fi').value==='1'?'\t':E('fi').value,sortKeys:E('fs').checked});
+    if(r.success){out.value=r.result;out.className='output ok';show('fe','OK: '+r.result.length+' chars',true);}
+    else{out.value='';out.className='output err';show('fe','ERROR: '+(r.detail?r.detail.line+': '+r.detail.message:r.error));}
+  }catch(e){show('fe','Request failed: '+e.message);}
+}
+
+async function vl(){
+  const j=E('vi-t').value;
+  const out=E('vo-t');
+  const stats=E('vs');
+  try{
+    const r=await post('/api/validate',{json:j});
+    if(r.valid){out.value='Valid JSON\nKeys: '+r.keys+' | Chars: '+r.size;out.className='output ok';stats.innerHTML='<span class="v">OK</span><span>'+r.size+' chars</span><span>'+r.keys+' keys</span>';show('ve','JSON is valid',true);}
+    else{out.value='Invalid JSON\nLine '+r.line+', Col '+r.column+'\n'+r.error;out.className='output err';stats.innerHTML='<span class="x">INVALID</span>';show('ve','ERROR: '+r.error);}
+  }catch(e){show('ve','Request failed: '+e.message);}
+}
+
+async function mn(){
+  const j=E('mi-t').value;
+  const out=E('mo-t');
+  try{
+    const r=await post('/api/minify',{json:j});
+    if(r.success){
+      out.value=r.result;out.className='output ok';
+      const pct=((1-r.minifiedSize/r.originalSize)*100).toFixed(1);
+      show('me','Compressed: '+r.originalSize+' -> '+r.minifiedSize+' ('+pct+'% reduction)',true);
+    }else{out.value='';out.className='output err';show('me','ERROR: '+r.error);}
+  }catch(e){show('me','Request failed: '+e.message);}
+}
+
+async function qy(){
+  const j=E('qq-t').value;
+  const p=E('qp').value;
+  const out=E('qo-t');
+  if(!p){show('qe','Enter a path first');return;}
+  try{
+    const r=await post('/api/query',{json:j,path:p});
+    if(r.success){out.value='Path: '+r.path+'\nFound: '+r.found+'\n\n'+JSON.stringify(r.result,null,2);out.className='output ok';show('qe','Query OK',true);}
+    else{out.value='';out.className='output err';show('qe','ERROR: '+r.error);}
+  }catch(e){show('qe','Request failed: '+e.message);}
+}
+
+async function df(){
+  const j1=E('d1').value,j2=E('d2').value;
+  const out=E('do-t');
+  try{
+    const r=await post('/api/diff',{json1:j1,json2:j2});
+    if(r.success){
+      out.value=r.diffs.map(d=>{
+        const i={added:'[+]',removed:'[-]',changed:'[~]'}[d.type];
+        return i+' '+d.type+': '+d.path+(d.oldValue!==undefined?'\n  OLD: '+JSON.stringify(d.oldValue):'')+(d.newValue!==undefined?'\n  NEW: '+JSON.stringify(d.newValue):'')+(d.value!==undefined?'\n  VAL: '+JSON.stringify(d.value):'');
+      }).join('\n\n');
+      out.className='output ok';show('de','Found '+r.totalChanges+' differences',true);
+    }else{out.value='';out.className='output err';show('de','ERROR: '+r.error);}
+  }catch(e){show('de','Request failed: '+e.message);}
+}
+
+async function cv(){
+  const j=E('ci-t').value;
+  const dir=E('cv-dir').value;
+  const out=E('co-t');
+  try{
+    const r=await post('/api/convert',{json:j,to:dir});
+    if(r.success){out.value=r.result;out.className='output ok';show('ce','Converted to '+(dir==='yaml'?'YAML':'JSON'),true);}
+    else{out.value='';out.className='output err';show('ce','ERROR: '+r.error);}
+  }catch(e){show('ce','Request failed: '+e.message);}
+}
+
+async function sc(){
+  const j=E('si-t').value;
+  const out=E('so-t');
+  try{
+    const r=await post('/api/schema/generate',{json:j});
+    if(r.success){out.value=r.result;out.className='output ok';show('se','Schema generated',true);}
+    else{out.value='';out.className='output err';show('se','ERROR: '+r.error);}
+  }catch(e){show('se','Request failed: '+e.message);}
+}
+
+// NEW: 统计
+async function st(){
+  const j=E('st-t').value;
+  const out=E('st-out');
+  try{
+    const r=await post('/api/stats',{json:j});
+    if(r.success){
+      const s=r.stats;
+      out.innerHTML=`
+        <div class="stats-grid">
+          <div class="stat-card"><h4>总键数</h4><div class="val">${s.totalKeys}</div></div>
+          <div class="stat-card"><h4>总值数</h4><div class="val">${s.totalValues}</div></div>
+          <div class="stat-card"><h4>最大深度</h4><div class="val">${s.maxDepth}</div></div>
+          <div class="stat-card"><h4>对象数</h4><div class="val">${s.types.object}</div></div>
+          <div class="stat-card"><h4>数组数</h4><div class="val">${s.types.array}</div></div>
+          <div class="stat-card"><h4>字符串数</h4><div class="val">${s.types.string}</div></div>
+          <div class="stat-card"><h4>数字数</h4><div class="val">${s.types.number+s.types.integer}</div></div>
+          <div class="stat-card"><h4>布尔数</h4><div class="val">${s.types.boolean}</div></div>
+          <div class="stat-card"><h4>Null数</h4><div class="val">${s.types.null}</div></div>
+          <div class="stat-card"><h4>平均数组长度</h4><div class="val">${s.summary.avgArrayLength}</div></div>
+          <div class="stat-card"><h4>平均字符串长度</h4><div class="val">${s.summary.avgStringLength}</div></div>
+          <div class="stat-card"><h4>数字范围</h4><div class="val">${s.summary.numberRange.min??'N/A'} ~ ${s.summary.numberRange.max??'N/A'}</div></div>
+        </div>
+      `;
+      show('ste','分析完成',true);
+    }else{out.innerHTML='';show('ste','ERROR: '+(r.detail?r.detail.line+': '+r.detail.message:r.error));}
+  }catch(e){show('ste','Request failed: '+e.message);}
+}
+
+function cpStat(){
+  const out=E('st-out').innerText;
+  navigator.clipboard.writeText(out);
+}
+
+// NEW: 合并
+function addMergeInput(){
+  mergeCount++;
+  const container=E('mg-inputs');
+  const ta=document.createElement('textarea');
+  ta.id='mg'+mergeCount;
+  ta.className='merge-input';
+  ta.placeholder='JSON #'+mergeCount;
+  setupDragDrop(ta);
+  container.appendChild(ta);
+  container.classList.remove('single');
+}
+
+async function mg(){
+  const inputs=document.querySelectorAll('.merge-input');
+  const jsons=[];
+  inputs.forEach((ta,i)=>{
+    if(ta.value.trim()){
+      jsons.push(ta.value);
+    }
+  });
+  if(jsons.length<2){
+    show('mge','需要至少 2 个 JSON 对象');return;
+  }
+  const opt=E('mg-opt').value;
+  const out=E('mgo-t');
+  try{
+    const r=await post('/api/merge',{jsons,options:{arrayMerge:opt}});
+    if(r.success){out.value=r.result;out.className='output ok';show('mge','成功合并 '+r.mergedCount+' 个 JSON',true);}
+    else{out.value='';out.className='output err';show('mge','ERROR: '+r.error);}
+  }catch(e){show('mge','Request failed: '+e.message);}
+}
+
+function clr(id){
+  const t=E(id+'-t');
+  if(t)t.value='';
+  const o=E(id[0]+'o-t');
+  if(o)o.value='';
+  const stOut=E('st-out');
+  if(stOut)stOut.innerHTML='';
+  // 清空合并输入
+  if(id==='merge'){
+    const container=E('mg-inputs');
+    container.innerHTML='<textarea id="mg1" placeholder="{\"a\":1,\"b\":{\"x\":10}}" class="merge-input"></textarea><textarea id="mg2" placeholder="{\"a\":2,\"c\":3,\"b\":{\"y\":20}}" class="merge-input"></textarea>';
+    document.querySelectorAll('.merge-input').forEach(setupDragDrop);
+    mergeCount=2;
+  }
+}
+
+async function cp(id){
+  try{navigator.clipboard.writeText(E(id).value);}
+  catch{E(id).select();document.execCommand('copy');}
+}
+
+function dl(id,fname){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([E(id).value],{type:'text/plain'}));
+  a.download=fname;
+  a.click();
+}
+
+// 快捷键
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
+    const t=document.querySelector('.tab.active')?.dataset.t;
+    if(t==='format')fmt();
+    else if(t==='validate')vl();
+    else if(t==='minify')mn();
+    else if(t==='query')qy();
+    else if(t==='diff')df();
+    else if(t==='convert')cv();
+    else if(t==='schema')sc();
+    else if(t==='stats')st();
+    else if(t==='merge')mg();
+  }
+});
+
+// 自动调整高度
+document.querySelectorAll('textarea').forEach(ta=>{
+  ta.addEventListener('input',()=>{
+    ta.style.height='auto';
+    ta.style.height=Math.max(160,ta.scrollHeight)+'px';
+  });
+});
 </script>
 </body>
 </html>
